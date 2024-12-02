@@ -1,0 +1,20 @@
+syntax = "proto3";
+package proto_db_translator; // Adjust as per your project.
+import "protobuf-db/proto/database_operations.proto";
+option go_package = "/user";
+
+  message RoleHierarchy {
+    int32 child_role_id = 1 [
+      (db_annotations.db_column) = "child_role_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_foreign_key_table) = "Role"
+    ];
+  
+    int32 parent_role_id = 2 [
+      (db_annotations.db_column) = "parent_role_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_foreign_key_table) = "Role"
+    ];
+  }

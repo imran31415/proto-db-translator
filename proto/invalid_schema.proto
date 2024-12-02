@@ -1,0 +1,63 @@
+syntax = "proto3";
+package proto_db_translator; // Adjust as per your project.
+import "protobuf-db/proto/database_operations.proto";
+option go_package = "/user";
+import "google/protobuf/timestamp.proto";
+
+// Message with intentional errors for validation testing
+message InvalidSqlSchema1 {
+  // Error 1: Missing `db_column` annotation, required for all fields.
+  int32 id = 1 [
+    (db_annotations.db_primary_key) = true,
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+}
+
+message InvalidSqlSchema2 {
+
+  // Error 2: Incorrect foreign key referencing a non-existent table.
+  int32 parent_id = 2 [
+    (db_annotations.db_column) = "parent_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_foreign_key_table) = "NonExistentTable",
+    (db_annotations.db_foreign_key_column) = "id",
+    (db_annotations.db_on_delete) = DB_FOREIGN_KEY_ACTION_CASCADE
+  ];
+}
+
+message InvalidSqlSchema3 {
+
+  // Error 3: Duplicate primary key annotation in the same schema.
+  string name = 3 [
+    (db_annotations.db_column) = "name",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_UNIQUE,
+    (db_annotations.db_primary_key) = true
+  ];
+}
+
+message InvalidSqlSchema4 {
+
+  // Error 4: Unsupported default function for SQLite.
+  google.protobuf.Timestamp created_at = 4 [
+    (db_annotations.db_column) = "created_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_UUID
+  ];
+}
+
+message InvalidSqlSchema5 {
+
+  // Error 5: Invalid character set (not supported by most databases).
+  string invalid_char_set_column = 5 [
+    (db_annotations.db_column) = "invalid_column",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_character_set) = "unsupported_charset"
+  ];
+}
+
