@@ -59,5 +59,12 @@ jobs:
       # Step 6: Run tests with MySQL
       - name: Run tests
         env:
-          DATABASE_URL: "root:password@tcp(127.0.0.1:3306)/testdb"
+          DATABASE_URL: "root:password@tcp(127.0.0.1:3306)/testt"
         run: go test -v ./...
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.out  # Path to your coverage file
+          flags: unittests
+          name: codecov-coverage
