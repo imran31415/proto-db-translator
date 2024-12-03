@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/imran31415/proto-db-translator/graph/badge.svg?token=H337NCMDAX)](https://codecov.io/gh/imran31415/proto-db-translator)
+
 ## proto-db-translator
 
 The core purpose of this package is to provide translation logic of protobuf DB annotations into actual SQL statements and code models.  The annotations are stored in a separate repo: https://github.com/imran31415/protobuf-db
