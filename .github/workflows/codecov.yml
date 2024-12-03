@@ -51,7 +51,7 @@ jobs:
 
       # Step 5: Install dependencies
       - name: Install dependencies
-         run: |
+        run: |
           go mod tidy  # Ensure the module file is up-to-date
           go mod download  # Download all dependencies
           go install github.com/xo/xo@latest # needed to generate models
