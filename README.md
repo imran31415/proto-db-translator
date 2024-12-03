@@ -10,8 +10,6 @@
 go get github.com/imran31415/proto-db-translator
 ```
 
->>>>>>> c9a16bb (update mod/readme)
-
 The core purpose of this package is to provide translation logic of protobuf DB annotations into actual SQL statements and code models.  The annotations are stored in a separate repo: https://github.com/imran31415/protobuf-db
 
 
