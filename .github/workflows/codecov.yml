@@ -20,17 +20,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.20 # Update this to your Go version
+          go-version: 1.20 # Update this to your required Go version
 
-      # Step 3: Install dependencies
+      # Step 3: Ensure Go is set up correctly
+      - name: Verify Go version
+        run: go version
+
+      # Step 4: Install dependencies
       - name: Install dependencies
         run: go mod tidy
 
-      # Step 4: Run tests with coverage
+      # Step 5: Run tests with coverage
       - name: Run tests
         run: go test -v -coverprofile=coverage.out ./...
 
-      # Step 5: Upload coverage to Codecov
+      # Step 6: Upload coverage to Codecov
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
