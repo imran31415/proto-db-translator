@@ -1,6 +1,16 @@
+
+# Proto-DB Translator
 [![codecov](https://codecov.io/gh/imran31415/proto-db-translator/graph/badge.svg?token=H337NCMDAX)](https://codecov.io/gh/imran31415/proto-db-translator)
 
-## proto-db-translator
+`proto-db-translator` is a Go library for generating and managing database schemas from protobuf definitions.
+
+## Installation
+
+```bash
+go get github.com/imran31415/proto-db-translator
+```
+
+>>>>>>> c9a16bb (update mod/readme)
 
 The core purpose of this package is to provide translation logic of protobuf DB annotations into actual SQL statements and code models.  The annotations are stored in a separate repo: https://github.com/imran31415/protobuf-db
 
