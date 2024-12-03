@@ -2,6 +2,7 @@ package proto_db
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	dbAn "github.com/imran31415/protobuf-db/db-annotations"
@@ -72,6 +73,7 @@ type Schema struct {
 	Indexes              []string       `json:"indexes"`                // Index definitions
 	UniqueConstraints    []string       `json:"unique_constraints,omitempty"`
 	CheckConstraints     []string       `json:"check_constraints,omitempty"`
+	CompositIndexes      []string       `json:"composite_indexes,omitempty"`
 }
 
 // ColumnSchema represents the definition of a table column
@@ -114,21 +116,18 @@ func (t Translator) GenerateSchema(message proto.Message) (Schema, error) {
 		if index != "" {
 			indexes = append(indexes, fmt.Sprintf("%s (%s)", index, c.Name))
 		}
-
 		columns = append(columns, c)
 	}
 
 	// Parse composite indexes
 	compositeIndexes := parseCompositeIndexes(md)
-	for _, index := range compositeIndexes {
-		indexes = append(indexes, fmt.Sprintf("INDEX (%s)", index))
-	}
 	uniqueConstraints, checkConstraints := parseTableLevelConstraints(md)
 
 	return Schema{
 		TableName:            tableName,
 		Columns:              columns,
 		Indexes:              indexes,
+		CompositIndexes:      compositeIndexes,
 		CompositePrimaryKeys: parseCompositePrimaryKeys(md),
 		UniqueConstraints:    uniqueConstraints,
 		CheckConstraints:     checkConstraints,
@@ -226,13 +225,25 @@ func (t Translator) GenerateCreateTableSQL(schema Schema) string {
 	}
 
 	createStmt.WriteString("\n);")
-
-	// Add index definitions
 	for _, index := range schema.Indexes {
 		createStmt.WriteString(fmt.Sprintf("\nCREATE %s;", index))
 	}
 
+	for _, compositeIndex := range schema.CompositIndexes {
+		createStmt.WriteString(fmt.Sprintf("\nCREATE INDEX %s ON %s (%s);",
+			generateIndexName(compositeIndex, schema.TableName),
+			schema.TableName,
+			compositeIndex))
+	}
+	// Add composite index definitions
+
+	log.Printf("----Table: %s, Statement: %s", schema.TableName, createStmt.String())
 	return createStmt.String()
+}
+
+func generateIndexName(index string, tableName string) string {
+	sanitizedIndex := strings.ReplaceAll(index, ",", "_") // Replace commas with underscores
+	return fmt.Sprintf("%s_%s_idx", tableName, sanitizedIndex)
 }
 
 // Helper: Check if a column exists in the schema
@@ -359,16 +370,28 @@ func extractFieldSchema(field protoreflect.FieldDescriptor, dbType DatabaseType)
 }
 
 func parseCompositePrimaryKeys(md protoreflect.MessageDescriptor) []string {
-	options := md.Options().(*descriptorpb.MessageOptions)
-	if options == nil {
+	options, ok := md.Options().(*descriptorpb.MessageOptions)
+	if !ok || options == nil {
+		fmt.Println("No MessageOptions found for descriptor")
 		return nil
 	}
 
+	fmt.Printf("Options: %+v\n", options)
+
+	// Check if the extension is present before accessing it
+	if !proto.HasExtension(options, dbAn.E_DbCompositePrimaryKey) {
+		fmt.Println("No composite primary key extension found in options")
+		return nil
+	}
+
+	// Safely extract the composite primary keys
 	compositeKeys, ok := proto.GetExtension(options, dbAn.E_DbCompositePrimaryKey).([]string)
 	if !ok {
+		fmt.Println("Failed to extract composite primary keys")
 		return nil
 	}
 
+	fmt.Printf("Composite Primary Keys Parsed: %v\n", compositeKeys)
 	return compositeKeys
 }
 

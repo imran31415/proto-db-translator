@@ -2,6 +2,8 @@ package proto_db
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	dbAn "github.com/imran31415/protobuf-db/db-annotations"
 
@@ -135,21 +137,24 @@ func parseIndexes(field protoreflect.FieldDescriptor) (string, error) {
 		return "", fmt.Errorf("unsupported index type: %v", indexType)
 	}
 }
-
 func parseCompositeIndexes(md protoreflect.MessageDescriptor) []string {
-	options := md.Options().(*descriptorpb.MessageOptions)
-	if options == nil {
+	options, ok := md.Options().(*descriptorpb.MessageOptions)
+	if !ok || options == nil {
+		return nil
+	}
+	log.Println("Attempting to get composite raw indexes")
+
+	// Extract the composite index string
+	compositeIndexStr, ok := proto.GetExtension(options, dbAn.E_DbCompositeIndex).(string)
+	if !ok || compositeIndexStr == "" {
 		return nil
 	}
 
-	compositeIndexes, ok := proto.GetExtension(options, dbAn.E_DbCompositeIndex).([]string)
-	if !ok {
-		return nil
-	}
-
-	return compositeIndexes
+	// Split by semicolons to get individual indexes
+	rawIndexes := strings.Split(compositeIndexStr, ";")
+	log.Println("Found composite raw indexes: ", rawIndexes)
+	return rawIndexes
 }
-
 func parseForeignKeyAction(action dbAn.DbForeignKeyAction) string {
 	switch action {
 	case dbAn.DbForeignKeyAction_DB_FOREIGN_KEY_ACTION_CASCADE:
@@ -164,23 +169,26 @@ func parseForeignKeyAction(action dbAn.DbForeignKeyAction) string {
 		return ""
 	}
 }
-
 func parseTableLevelConstraints(md protoreflect.MessageDescriptor) (uniqueConstraints []string, checkConstraints []string) {
-	options := md.Options().(*descriptorpb.MessageOptions)
-	if options == nil {
+	options, ok := md.Options().(*descriptorpb.MessageOptions)
+	if !ok || options == nil {
 		return
 	}
 
-	// Parse UNIQUE constraints
-	unique, ok := proto.GetExtension(options, dbAn.E_DbUniqueConstraint).([]string)
-	if ok {
-		uniqueConstraints = append(uniqueConstraints, unique...)
+	// Parse composite UNIQUE constraints
+	if proto.HasExtension(options, dbAn.E_DbUniqueConstraint) {
+		unique, ok := proto.GetExtension(options, dbAn.E_DbUniqueConstraint).([]string)
+		if ok && len(unique) > 0 {
+			uniqueConstraints = append(uniqueConstraints, strings.Join(unique, ", "))
+		}
 	}
 
 	// Parse CHECK constraints
-	check, ok := proto.GetExtension(options, dbAn.E_DbCheckConstraint).([]string)
-	if ok {
-		checkConstraints = append(checkConstraints, check...)
+	if proto.HasExtension(options, dbAn.E_DbCheckConstraint) {
+		check, ok := proto.GetExtension(options, dbAn.E_DbCheckConstraint).([]string)
+		if ok {
+			checkConstraints = append(checkConstraints, check...)
+		}
 	}
 
 	return

@@ -57,6 +57,11 @@ protoc -I . \
        ./proto/role.proto \
        ./proto/role_hierarchy.proto \
        ./proto/invalid_schema.proto \
-       ./proto/user.proto
+       ./proto/user.proto \
+       ./proto/order_details.proto
 ```
 
+
+
+## Upgrade:
+`go get -u ./...`

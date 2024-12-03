@@ -19,7 +19,8 @@ func main() {
 		inputProtos := []proto.Message{
 			&user_proto.User{},
 			&user_proto.Role{},
-			&user_proto.RoleHierarchy{}, // RoleHierarchy has a fk dependency on Role so must come after
+			&user_proto.RoleHierarchy{},
+			&user_proto.OrderDetails{},
 		}
 
 		translator.ProcessProtoMessages("../generated_models", inputProtos)
