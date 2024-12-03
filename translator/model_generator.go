@@ -35,7 +35,7 @@ func (t Translator) GenerateModel(dbConnStr, tableName, outputDir string) error 
 		return fmt.Errorf("failed to generate model with XO: %w", err)
 	}
 
-	fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
+	// fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
 	return nil
 }
 func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto.Message) error {
@@ -93,14 +93,14 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 		tableName := string(protoMessage.ProtoReflect().Descriptor().Name())
 
 		// Generate schema from the proto message
-		schema, err := t.generateSchema(protoMessage)
+		schema, err := t.GenerateSchema(protoMessage)
 		if err != nil {
 			return fmt.Errorf("failed to generate schema for table '%s': %w", tableName, err)
 		}
 
 		// Generate the CREATE TABLE SQL statement
 		createTableSQL := t.GenerateCreateTableSQL(schema)
-		fmt.Printf("Generated SQL for table '%s':\n%s\n", tableName, createTableSQL)
+		// fmt.Printf("Generated SQL for table '%s':\n%s\n", tableName, createTableSQL)
 
 		// Ensure the table is dropped if it exists to avoid conflicts
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;", tableName))
@@ -123,7 +123,7 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 			return fmt.Errorf("model generation failed for table '%s': %w", tableName, err)
 		}
 
-		fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
+		// fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
 	}
 
 	return nil

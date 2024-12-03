@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/imran31415/protobuf-db v0.0.0-20241202221200-4c85dfdcdba2
+	github.com/imran31415/protobuf-db v0.0.0-20241203001312-309044f13378
 	github.com/mattn/go-sqlite3 v1.14.24
 	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2

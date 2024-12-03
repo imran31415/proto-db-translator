@@ -40,10 +40,13 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 		if openErr != nil {
 			return fmt.Errorf("failed to connect to MySQL database: %w", openErr)
 		}
-		defer db.Close()
-
 		// Create a temporary database for validation
 		tempDB := "test_validate"
+		// Ensure the temporary database is dropped after validation
+		defer func() {
+			_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", tempDB))
+			defer db.Close()
+		}()
 		_, err := db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", tempDB))
 		if err != nil {
 			return fmt.Errorf("failed to create temporary database: %w", err)
@@ -55,32 +58,19 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 			return fmt.Errorf("failed to switch to temporary database: %w", err)
 		}
 
-		// Ensure the temporary database is dropped after validation
-		defer func() {
-			_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", tempDB))
-		}()
 	}
 
 	// Process each proto message
 	for _, protoMessage := range protoMessages {
-		// Extract table name from the Protobuf message
 		tableName := string(protoMessage.ProtoReflect().Descriptor().Name())
-
-		// Generate the schema from the proto message
-		schema, err := t.generateSchema(protoMessage)
+		schema, err := t.GenerateSchema(protoMessage)
 		if err != nil {
 			return fmt.Errorf("failed to generate schema for table '%s': %w", tableName, err)
 		}
 
-		// Generate the CREATE TABLE statement
 		createTableSQL := t.GenerateCreateTableSQL(schema)
-		fmt.Printf("Generated SQL for validation (table '%s'):\n%s\n", tableName, createTableSQL)
+		// fmt.Printf("Generated SQL for validation (table '%s'):\n%s\n", tableName, createTableSQL)
 
-		// _, err = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;", tableName))
-		// if err != nil {
-		// 	return fmt.Errorf("failed to drop table '%s': %w", tableName, err)
-		// }
-		// Apply the CREATE TABLE statement
 		_, err = db.Exec(createTableSQL)
 		if err != nil {
 			return fmt.Errorf("schema validation failed for table '%s': %w\nSQL: %s", tableName, err, createTableSQL)

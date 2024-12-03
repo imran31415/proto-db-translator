@@ -17,7 +17,7 @@ func TestGenerateSchema(t *testing.T) {
 	user := &userauth.User{}
 
 	// Generate schema
-	schema, err := NewSqliteTranslator().generateSchema(user)
+	schema, err := NewSqliteTranslator().GenerateSchema(user)
 	require.NoError(t, err)
 
 	// Check schema details
@@ -563,6 +563,68 @@ func TestGenerateCreateTableSQL(t *testing.T) {
   timestamp DATETIME NOT NULL DEFAULT NOW()
 );`,
 		},
+		{
+			name: "Message with Composite Primary Keys",
+			schema: Schema{
+				TableName: "CompositePrimaryKeyTable",
+				Columns: []ColumnSchema{
+					{Name: "key1", Type: "INT", Constraints: []string{"NOT NULL"}},
+					{Name: "key2", Type: "VARCHAR(255)", Constraints: []string{"NOT NULL"}},
+				},
+				CompositePrimaryKeys: []string{"key1", "key2"},
+			},
+			expected: `CREATE TABLE CompositePrimaryKeyTable (
+		  key1 INT NOT NULL,
+		  key2 VARCHAR(255) NOT NULL,
+		  PRIMARY KEY (key1, key2)
+		);`,
+		},
+		{
+			name: "Message with Composite Unique Constraint",
+			schema: Schema{
+				TableName: "CompositeUniqueTable",
+				Columns: []ColumnSchema{
+					{Name: "field1", Type: "INT", Constraints: []string{"NOT NULL"}},
+					{Name: "field2", Type: "VARCHAR(255)", Constraints: []string{"NOT NULL"}},
+				},
+				UniqueConstraints: []string{"field1, field2"},
+			},
+			expected: `CREATE TABLE CompositeUniqueTable (
+		  field1 INT NOT NULL,
+		  field2 VARCHAR(255) NOT NULL,
+		  UNIQUE (field1, field2)
+		);`,
+		},
+		{
+			name: "Message with Composite Index",
+			schema: Schema{
+				TableName: "CompositeIndexTable",
+				Columns: []ColumnSchema{
+					{Name: "field1", Type: "INT", Constraints: []string{"NOT NULL"}},
+					{Name: "field2", Type: "VARCHAR(255)", Constraints: []string{"NOT NULL"}},
+				},
+				Indexes: []string{"INDEX (field1, field2)"},
+			},
+			expected: `CREATE TABLE CompositeIndexTable (
+		  field1 INT NOT NULL,
+		  field2 VARCHAR(255) NOT NULL
+		);
+		CREATE INDEX (field1, field2);`,
+		},
+		{
+			name: "Message with Check Constraints",
+			schema: Schema{
+				TableName: "CheckConstraintTable",
+				Columns: []ColumnSchema{
+					{Name: "age", Type: "INT", Constraints: []string{"NOT NULL"}},
+				},
+				CheckConstraints: []string{"age > 18"},
+			},
+			expected: `CREATE TABLE CheckConstraintTable (
+		  age INT NOT NULL,
+		  CHECK (age > 18)
+		);`,
+		},
 	}
 
 	// Run all test cases
@@ -619,7 +681,7 @@ func TestGenerateCreateTableSQLFromUserProto(t *testing.T) {
 
 	// Generate the schema from the User proto
 	user := &userauth.User{}
-	schema, err := NewTranslator(DefaultMysqlConnection()).generateSchema(user)
+	schema, err := NewTranslator(DefaultMysqlConnection()).GenerateSchema(user)
 	require.NoError(t, err)
 
 	// Generate the CREATE TABLE SQL statement

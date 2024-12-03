@@ -93,7 +93,7 @@ type ColumnSchema struct {
 
 }
 
-func (t Translator) generateSchema(message proto.Message) (Schema, error) {
+func (t Translator) GenerateSchema(message proto.Message) (Schema, error) {
 	md := message.ProtoReflect().Descriptor()
 	tableName := string(md.Name())
 
@@ -134,7 +134,6 @@ func (t Translator) generateSchema(message proto.Message) (Schema, error) {
 		CheckConstraints:     checkConstraints,
 	}, nil
 }
-
 
 func (t Translator) GenerateCreateTableSQL(schema Schema) string {
 	var createStmt strings.Builder
