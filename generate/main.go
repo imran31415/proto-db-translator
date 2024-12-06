@@ -9,6 +9,8 @@ import (
 
 	user_proto "github.com/imran31415/proto-db-translator/user"
 	"google.golang.org/protobuf/proto"
+
+	config_generator "github.com/imran31415/proto-db-translator/config_generator"
 	// "google.golang.org/protobuf/proto"
 )
 
@@ -37,6 +39,7 @@ func main() {
 		return
 	}
 
+	config_generator.GenerateConfig("../config")
 	fmt.Println("Successfully created tables and modelsr")
 
 }
