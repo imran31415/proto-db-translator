@@ -7,25 +7,21 @@ import (
 	grpc_generator "github.com/imran31415/proto-db-translator/grpc_generator"
 	proto_db "github.com/imran31415/proto-db-translator/translator"
 	"github.com/imran31415/proto-db-translator/translator/db"
-	"google.golang.org/protobuf/proto"
-
 	user_proto "github.com/imran31415/proto-db-translator/user"
+	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/proto"
 
 	config_generator "github.com/imran31415/proto-db-translator/config_generator"
 )
 
 func main() {
-
-	// The following is example usage of this package to show what it can do
-
 	// Step 1: Initialize the translator
 	conn := db.DefaultMysqlConnection()
 	conn.DbName = "protodbtranslatortestdb"
 	translator := proto_db.NewTranslator(conn)
 
-	log.Println("successfully initialized translator")
+	log.Println("Successfully initialized translator")
 	// Pass in Protobuf Messages which each should represent a SQL "table" with appropriate annotations configured
-	// These should be passed in strict order in which they would be created in SQL for FK dependencies.
 	inputProtos := []proto.Message{
 		&user_proto.User{},
 		&user_proto.Role{},
@@ -45,7 +41,6 @@ func main() {
 	}
 
 	// Generate go DB models for CRUD operations and even advanced queries like pagination
-	// This will create a package in the outer directory
 	err = translator.GenerateModels("../generated_models", inputProtos)
 	if err != nil {
 		log.Println(err)
@@ -70,6 +65,20 @@ func main() {
 	} else {
 		fmt.Println("gRPC server generated successfully.")
 	}
-	fmt.Println("Successfully created tables and modelsr")
 
+	descriptorPath := "../user/desc.pb"
+	plugin, err := grpc_generator.ParseDescriptorFromFile(descriptorPath, protogen.Options{})
+	if err != nil {
+		fmt.Printf("Failed to parse descriptor: %v\n", err)
+		return
+	}
+
+	outputDir := "./grpcimpl"
+	if err := grpc_generator.GenerateGRPCImpl(plugin, outputDir); err != nil {
+		fmt.Printf("Error generating gRPC implementation: %v\n", err)
+	} else {
+		fmt.Println("gRPC implementation generated successfully.")
+	}
+
+	fmt.Println("Successfully created tables, models, and gRPC server/implementation.")
 }
