@@ -1,0 +1,76 @@
+name: Test with MySQL
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Run Tests with MySQL
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: Password123!
+          MYSQL_DATABASE: testt
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      # Step 3: Wait for MySQL to become healthy
+      - name: Wait for MySQL
+        run: |
+          for i in {1..10}; do
+            nc -zv 127.0.0.1 3306 && break
+            echo "Waiting for MySQL..."
+            sleep 5
+          done
+
+      # Step 4: Verify Go version
+      - name: Verify Go version
+        run: go version
+
+      # Step 5: Install dependencies
+      - name: Install dependencies
+        run: |
+          go mod tidy  # Ensure the module file is up-to-date
+          go mod download  # Download all dependencies
+          go install github.com/xo/xo@latest # needed to generate models
+
+      # Step 6: Run tests with MySQL
+      # Step 6: Run tests with MySQL
+      - name: Run tests
+        env:
+          DATABASE_URL: "root:password@tcp(127.0.0.1:3306)/testt"
+        run: |
+          go test -v ./...
+          go test -coverprofile=coverage.out ./...
+          # Filter out generated_models and user directories from coverage.out
+          grep -v "/generated_models/" coverage.out | grep -v "/user/" > filtered_coverage.out
+      # Step 7: Upload coverage report to Codecov
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./filtered_coverage.out  # Use the filtered coverage file
+          flags: unittests
+          name: codecov-coverage

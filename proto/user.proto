@@ -1,0 +1,113 @@
+syntax = "proto3";
+package proto_db_translator; // Adjust as per your project.
+import "google/protobuf/timestamp.proto";
+import "protobuf-db/proto/database_operations.proto";
+option go_package = "/user";
+
+
+message User {
+  int32 id = 1 [
+    (db_annotations.db_column) = "id",
+    (db_annotations.db_primary_key) = true,
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  string username = 2 [
+    (db_annotations.db_column) = "username",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_index) = true,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_UNIQUE
+  ];
+
+  string email = 3 [
+    (db_annotations.db_column) = "email",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_index) = true,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_UNIQUE
+  ];
+
+  string hashed_password = 4 [
+    (db_annotations.db_column) = "hashed_password",
+    (db_annotations.db_column_type) = DB_TYPE_TEXT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  bool is_2fa_enabled = 5 [
+    (db_annotations.db_column) = "is_2fa_enabled",
+    (db_annotations.db_column_type) = DB_TYPE_BOOLEAN,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default) = DB_DEFAULT_FALSE
+  ];
+
+  string two_factor_secret = 6 [
+    (db_annotations.db_column) = "two_factor_secret",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR
+  ];
+
+  google.protobuf.Timestamp created_at = 7 [
+    (db_annotations.db_column) = "created_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default) = DB_DEFAULT_CURRENT_TIMESTAMP
+  ];
+
+  google.protobuf.Timestamp updated_at = 8 [
+    (db_annotations.db_column) = "updated_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default) = DB_DEFAULT_CURRENT_TIMESTAMP,
+    (db_annotations.db_update_action) = DB_UPDATE_ACTION_CURRENT_TIMESTAMP
+  ];
+}
+
+
+
+// Message for user registration request
+message RegisterUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+// Message for user registration response
+message RegisterUserResponse {
+  int32 user_id = 1;
+}
+
+// Message for user login request
+message LoginUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Message for user login response
+message LoginUserResponse {
+  string token = 1;
+}
+
+// Message for 2-factor verification request
+message Verify2FARequest {
+  int32 user_id = 1;
+  string code = 2; // Verification code
+}
+
+// Message for 2-factor verification response
+message Verify2FAResponse {
+  bool success = 1;
+}
+
+// Service definition for user authentication
+service UserAuthService {
+  // API to register a new user
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+  
+  // API to login an existing user
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  
+  // API for verifying 2-factor authentication
+  rpc Verify2FA(Verify2FARequest) returns (Verify2FAResponse);
+}
+

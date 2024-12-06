@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package userauth;
+
+import "google/protobuf/timestamp.proto";
+import "protobuf-db/proto/database_operations.proto";
+option go_package = "/user";
+
+// Message for the OrderDetails entity
+message OrderDetails {
+  option (db_annotations.db_composite_primary_key) = "order_id,product_id";
+  option (db_annotations.db_composite_index) = "created_at,order_id;product_id,quantity";
+
+
+  int32 order_id = 1 [
+    (db_annotations.db_column) = "order_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  int32 product_id = 2 [
+    (db_annotations.db_column) = "product_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  int32 quantity = 3 [
+    (db_annotations.db_column) = "quantity",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  google.protobuf.Timestamp created_at = 4 [
+    (db_annotations.db_column) = "created_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW
+  ];
+
+  google.protobuf.Timestamp updated_at = 5 [
+    (db_annotations.db_column) = "updated_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW,
+    (db_annotations.db_update_action) = DB_UPDATE_ACTION_CURRENT_TIMESTAMP
+  ];
+}
+
+
