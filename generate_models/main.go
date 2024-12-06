@@ -14,7 +14,10 @@ import (
 
 func main() {
 
-	translator := proto_db.NewTranslator(db.DefaultMysqlConnection())
+	conn := db.DefaultMysqlConnection()
+	conn.DbName = "protodbtranslatortestdb"
+	translator := proto_db.NewTranslator(conn)
+
 	log.Println("successfully initialized translator")
 
 	inputProtos := []proto.Message{

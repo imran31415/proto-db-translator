@@ -6,10 +6,9 @@ import (
 	userauth "github.com/imran31415/proto-db-translator/user"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/imran31415/proto-db-translator/translator/db"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"github.com/imran31415/proto-db-translator/translator/db"
-
 )
 
 func TestValidateSqlite(t *testing.T) {
@@ -41,7 +40,7 @@ func TestValidateSqlite(t *testing.T) {
 			translator := NewTranslator(db.DefaultSqliteConnection())
 
 			// Validate schema
-			err := translator.ValidateSchema(protoList(test.proto), "root:Password123!@tcp(localhost)/testt")
+			_, err := translator.ValidateSchema(protoList(test.proto))
 
 			if test.expectErr {
 				require.Error(t, err)
@@ -82,7 +81,7 @@ func TestValidateMysql(t *testing.T) {
 			translator := NewTranslator(db.DefaultMysqlConnection())
 
 			// Validate schema
-			err := translator.ValidateSchema(protoList(test.proto), "root:Password123!@tcp(localhost)/")
+			_, err := translator.ValidateSchema(protoList(test.proto))
 
 			if test.expectErr {
 				require.Error(t, err)
@@ -147,7 +146,7 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 		},
 		{
 			name:             "Invalid Sql Schema 5 - MySQL",
-			dbType:          db.DatabaseTypeMySQL,
+			dbType:           db.DatabaseTypeMySQL,
 			schema:           &userauth.InvalidSqlSchema5{},
 			connectionString: "root:Password123!@tcp(localhost)/",
 			expectedErrors:   []string{"Unknown character set: 'unsupported_charset"},
@@ -175,7 +174,7 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 			}
 
 			// Validate schema
-			err := translator.ValidateSchema(protoList(tc.schema), tc.connectionString)
+			_, err := translator.ValidateSchema(protoList(tc.schema))
 			require.Error(t, err, "Validation should fail for invalid schema")
 
 			// Assert the error message includes known issues

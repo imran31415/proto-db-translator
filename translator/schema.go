@@ -47,3 +47,8 @@ type ColumnSchema struct {
 	DefaultFunction  string   `json:"default_function,omitempty"` // New field for default functions
 
 }
+
+type SqlStatement struct {
+	Statement string
+	TableName string
+}

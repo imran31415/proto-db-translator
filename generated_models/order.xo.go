@@ -302,3 +302,10 @@ func OrdersByCustomerID(ctx context.Context, db DB, customerID int) ([]*Order, e
 	}
 	return res, nil
 }
+
+// Customer returns the Customer associated with the [Order]'s (CustomerID).
+//
+// Generated from foreign key 'orders_ibfk_1'.
+func (o *Order) Customer(ctx context.Context, db DB) (*Customer, error) {
+	return CustomerByCustomerID(ctx, db, o.CustomerID)
+}

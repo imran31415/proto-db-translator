@@ -308,3 +308,17 @@ func OrderItemsByProductID(ctx context.Context, db DB, productID int) ([]*OrderI
 	}
 	return res, nil
 }
+
+// Order returns the Order associated with the [OrderItem]'s (OrderID).
+//
+// Generated from foreign key 'orderitems_ibfk_1'.
+func (oi *OrderItem) Order(ctx context.Context, db DB) (*Order, error) {
+	return OrderByOrderID(ctx, db, oi.OrderID)
+}
+
+// Product returns the Product associated with the [OrderItem]'s (ProductID).
+//
+// Generated from foreign key 'orderitems_ibfk_2'.
+func (oi *OrderItem) Product(ctx context.Context, db DB) (*Product, error) {
+	return ProductByProductID(ctx, db, oi.ProductID)
+}

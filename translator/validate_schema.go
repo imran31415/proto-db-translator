@@ -20,7 +20,8 @@ func protoList(p proto.Message) []proto.Message {
 }
 
 // ValidateSchema validates the schema by applying it to a test database
-func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) error {
+func (t Translator) ValidateSchema(protoMessages []proto.Message) ([]SqlStatement, error) {
+	outputStatements := []SqlStatement{}
 	var database *sql.DB
 	var openErr error
 
@@ -29,21 +30,23 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 		// Open an in-memory SQLite database
 		database, openErr = sql.Open("sqlite3", ":memory:")
 		if openErr != nil {
-			return fmt.Errorf("failed to connect to SQLite database: %w", openErr)
+			return outputStatements, fmt.Errorf("failed to connect to SQLite database: %w", openErr)
 		}
 		defer database.Close()
 
 		// Enable foreign key constraints for SQLite
 		_, err := database.Exec("PRAGMA foreign_keys = ON;")
 		if err != nil {
-			return fmt.Errorf("failed to enable foreign key constraints: %w", err)
+			return outputStatements, fmt.Errorf("failed to enable foreign key constraints: %w", err)
 		}
 
 	case db.DatabaseTypeMySQL:
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", t.dbConnection.DbUser, t.dbConnection.DbPass, t.dbConnection.DbHost, t.dbConnection.DbPort, t.dbConnection.DbName)
+		dsn += "?parseTime=true&multiStatements=true"
 		// Connect to MySQL
-		database, openErr = sql.Open("mysql", dsn+"?multiStatements=true")
+		database, openErr = sql.Open("mysql", dsn)
 		if openErr != nil {
-			return fmt.Errorf("failed to connect to MySQL database: %w", openErr)
+			return outputStatements, fmt.Errorf("failed to connect to MySQL database: %w", openErr)
 		}
 
 		// Create a temporary database for validation
@@ -51,13 +54,13 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 		// ensure clean validation
 		_, err := database.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", tempDB))
 		if err != nil {
-			return fmt.Errorf("failed to create temporary database: %w", err)
+			return outputStatements, fmt.Errorf("failed to create temporary database: %w", err)
 		}
 
 		// Ensure the temporary database is dropped after validation
 		_, err = database.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", tempDB))
 		if err != nil {
-			return fmt.Errorf("failed to create temporary database: %w", err)
+			return outputStatements, fmt.Errorf("failed to create temporary database: %w", err)
 		}
 		defer func() {
 			database.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", tempDB))
@@ -67,28 +70,37 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 		// Switch to the temporary database
 		_, err = database.Exec(fmt.Sprintf("USE %s", tempDB))
 		if err != nil {
-			return fmt.Errorf("failed to switch to temporary database: %w", err)
+			return outputStatements, fmt.Errorf("failed to switch to temporary database: %w", err)
 		}
 
 	}
-
+	execute := ""
 	// Process each proto message
-	for _, protoMessage := range protoMessages {
+	for x, protoMessage := range protoMessages {
 		tableName := string(protoMessage.ProtoReflect().Descriptor().Name())
 		schema, err := t.GenerateSchema(protoMessage)
 		if err != nil {
-			return fmt.Errorf("failed to generate schema for table '%s': %w", tableName, err)
+			return outputStatements, fmt.Errorf("failed to generate schema for table '%s': %w", tableName, err)
 		}
 
-		createTableSQL := t.GenerateCreateTableSQL(schema)
-		// fmt.Printf("Generated SQL for validation (table '%s'):\n%s\n", tableName, createTableSQL)
-
-		_, err = database.Exec(createTableSQL)
-		if err != nil {
-			return fmt.Errorf("schema validation failed for table: %s.  err: %s\nSQL: %s", tableName, err, createTableSQL)
+		statement := SqlStatement{
+			Statement: t.GenerateCreateTableSQL(schema),
+			TableName: tableName,
 		}
-		log.Printf("Successfully validated %s", tableName)
+		outputStatements = append(outputStatements, statement)
+		if x == 0 {
+			execute += statement.Statement
+		} else {
+			// execute += "\n"
+			execute += statement.Statement
+		}
 	}
 
-	return nil
+	_, err := database.Exec(strings.TrimSpace(execute))
+	if err != nil {
+		return outputStatements, fmt.Errorf("schema validation failed. err: %s\nSQL: %s", err, execute)
+	}
+	log.Printf("Successfully validated %s", execute)
+
+	return outputStatements, nil
 }

@@ -6,7 +6,7 @@ import "google.golang.org/protobuf/proto"
 type TranslatorInterface interface {
 	GenerateSchema(message proto.Message) (Schema, error)                 // Converts the message along with annotations into a "Schema" representation
 	GenerateCreateTableSQL(schema Schema) string                          // Generates the Create Table statement based on the schema
-	ValidateSchema(protoMessage []proto.Message, dsn string) error        // Validates the schema by applying the Create table statement to an actual database instance to validate the annotations
+	ValidateSchema(protoMessage []proto.Message) ([]SqlStatement, error)  // Validates the schema by applying the Create table statement to an actual database instance to validate the annotations
 	GenerateModels(outputDir string, protoMessages []proto.Message) error // Leverages the Xo library to generate the database CRUD
 	GenerateMigration(oldSchema, newSchema Schema) string                 // Diffs 2 proto messages and determines the SQL migration to apply
 
