@@ -63,15 +63,13 @@ jobs:
           DATABASE_URL: "root:password@tcp(127.0.0.1:3306)/testt"
         run: |
           go test -v ./...
-          go test -coverprofile=coverage.out ./...
-          # Filter out generated_models and user directories from coverage.out
-          grep -v -E "(^|/)generated_models/|(^|/)user/" coverage.out > filtered_coverage.out
+          go test -coverprofile=coverage.out ./translator/...
       # Step 7: Upload coverage report to Codecov
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./filtered_coverage.out  # Use the filtered coverage file
+          files: ./coverage.out 
           flags: unittests
           name: codecov-coverage
           verbose: true
