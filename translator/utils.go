@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/imran31415/proto-db-translator/translator/db"
 	dbAn "github.com/imran31415/protobuf-db/db-annotations"
 
 	"google.golang.org/protobuf/proto"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-func extractFieldSchema(field protoreflect.FieldDescriptor, dbType DatabaseType) (ColumnSchema, error) {
+func extractFieldSchema(field protoreflect.FieldDescriptor, dbType db.DatabaseType) (ColumnSchema, error) {
 	var column ColumnSchema
 
 	// Extract field options
@@ -87,7 +88,7 @@ func extractFieldSchema(field protoreflect.FieldDescriptor, dbType DatabaseType)
 		defaultFunc = "UUID()"
 	case dbAn.DbDefaultFunction_DB_DEFAULT_FUNCTION_NOW:
 		switch dbType {
-		case DatabaseTypeSQLite:
+		case db.DatabaseTypeSQLite:
 			defaultFunc = "CURRENT_TIMESTAMP"
 		default:
 			defaultFunc = "CURRENT_TIMESTAMP"
@@ -163,7 +164,7 @@ func dbColumnTypeToMySQLType(dbType dbAn.DbColumnType) string {
 	}
 }
 
-func parseConstraints(constraints []dbAn.DbConstraint, defaultVal dbAn.DbDefault, customDefault string, updateAction dbAn.DbUpdateAction, dbType DatabaseType) []string {
+func parseConstraints(constraints []dbAn.DbConstraint, defaultVal dbAn.DbDefault, customDefault string, updateAction dbAn.DbUpdateAction, dbType db.DatabaseType) []string {
 	var result []string
 	for _, constraint := range constraints {
 		switch constraint {
@@ -189,7 +190,7 @@ func parseConstraints(constraints []dbAn.DbConstraint, defaultVal dbAn.DbDefault
 	}
 
 	switch dbType {
-	case DatabaseTypeSQLite:
+	case db.DatabaseTypeSQLite:
 		// Not supported in sqlite
 	default:
 		switch updateAction {

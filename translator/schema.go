@@ -1,47 +1,12 @@
 package proto_db
 
-// DatabaseType represents the type of database (SQLite, MySQL, PostgreSQL, etc.)
-type DatabaseType int
-
-const (
-	DatabaseTypeUnknown DatabaseType = iota
-	DatabaseTypeSQLite
-	DatabaseTypeMySQL
-	DatabaseTypePostgreSQL
-)
-
-type DbConnection struct {
-	DbType DatabaseType
-	DbName string
-	DbHost string
-	DbPort string
-	DbUser string
-	DbPass string
-}
-
-func DefaultMysqlConnection() DbConnection {
-	return DbConnection{
-		DbType: DatabaseTypeMySQL,
-		DbName: "proto_db_default",
-		DbHost: "127.0.0.1",
-		DbPort: "3306",
-		DbUser: "root",
-		// Just a default value obv don't use this locally
-		DbPass: "Password123!",
-	}
-}
-
-func DefaultSqliteConnection() DbConnection {
-	return DbConnection{
-		DbType: DatabaseTypeSQLite,
-	}
-}
+import "github.com/imran31415/proto-db-translator/translator/db"
 
 type Translator struct {
-	dbConnection DbConnection
+	dbConnection db.DbConnection
 }
 
-func NewTranslator(in DbConnection) Translator {
+func NewTranslator(in db.DbConnection) Translator {
 	return Translator{
 		dbConnection: in,
 	}
@@ -49,7 +14,7 @@ func NewTranslator(in DbConnection) Translator {
 
 func NewSqliteTranslator() Translator {
 	return Translator{
-		dbConnection: DefaultSqliteConnection(),
+		dbConnection: db.DefaultSqliteConnection(),
 	}
 }
 

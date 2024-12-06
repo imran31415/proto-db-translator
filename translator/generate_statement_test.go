@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/imran31415/proto-db-translator/translator/db"
 	userauth "github.com/imran31415/proto-db-translator/user"
 	"github.com/stretchr/testify/require"
 )
@@ -142,7 +143,7 @@ func TestGenerateCreateTableSQL(t *testing.T) {
 	// Run all test cases
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			actual := NewTranslator(DefaultMysqlConnection()).GenerateCreateTableSQL(test.schema)
+			actual := NewTranslator(db.DefaultMysqlConnection()).GenerateCreateTableSQL(test.schema)
 
 			// Normalize strings to trim whitespace and standardize newlines
 			normalize := func(input string) string {
@@ -193,11 +194,11 @@ func TestGenerateCreateTableSQLFromUserProto(t *testing.T) {
 
 	// Generate the schema from the User proto
 	user := &userauth.User{}
-	schema, err := NewTranslator(DefaultMysqlConnection()).GenerateSchema(user)
+	schema, err := NewTranslator(db.DefaultMysqlConnection()).GenerateSchema(user)
 	require.NoError(t, err)
 
 	// Generate the CREATE TABLE SQL statement
-	actual := NewTranslator(DefaultMysqlConnection()).GenerateCreateTableSQL(schema)
+	actual := NewTranslator(db.DefaultMysqlConnection()).GenerateCreateTableSQL(schema)
 
 	// Normalize strings to trim whitespace and standardize newlines
 	normalize := func(input string) string {

@@ -3,6 +3,8 @@ package proto_db
 import (
 	"fmt"
 	"strings"
+
+	"github.com/imran31415/proto-db-translator/translator/db"
 )
 
 func (t Translator) GenerateCreateTableSQL(schema Schema) string {
@@ -12,7 +14,7 @@ func (t Translator) GenerateCreateTableSQL(schema Schema) string {
 	// Add column definitions
 	for i, col := range schema.Columns {
 
-		if t.dbConnection.DbType == DatabaseTypeSQLite {
+		if t.dbConnection.DbType == db.DatabaseTypeSQLite {
 			// Remove CHARACTER SET and COLLATE for SQLite
 			if col.CharacterSet != "" || col.Collation != "" {
 				col.CharacterSet = ""
@@ -42,7 +44,7 @@ func (t Translator) GenerateCreateTableSQL(schema Schema) string {
 
 		// Handle AutoIncrement
 		if col.AutoIncrement {
-			if t.dbConnection.DbType == DatabaseTypeSQLite {
+			if t.dbConnection.DbType == db.DatabaseTypeSQLite {
 				createStmt.WriteString(" PRIMARY KEY,\n") // SQLite-specific
 				continue
 			} else {
@@ -107,7 +109,7 @@ func (t Translator) GenerateCreateTableSQL(schema Schema) string {
 			if col.OnDelete != "" {
 				createStmt.WriteString(fmt.Sprintf(" ON DELETE %s", col.OnDelete))
 			}
-			if col.OnUpdate != "" && t.dbConnection.DbType != DatabaseTypeSQLite {
+			if col.OnUpdate != "" && t.dbConnection.DbType != db.DatabaseTypeSQLite {
 
 				createStmt.WriteString(fmt.Sprintf(" ON UPDATE %s", col.OnUpdate))
 			}

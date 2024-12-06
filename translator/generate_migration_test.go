@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/imran31415/proto-db-translator/translator/db"
 )
 
 func TestGenerateMigration(t *testing.T) {
@@ -28,7 +29,7 @@ func TestGenerateMigration(t *testing.T) {
 	}
 
 	// Generate migration
-	migration := NewTranslator(DefaultMysqlConnection()).GenerateMigration(oldSchema, newSchema)
+	migration := NewTranslator(db.DefaultMysqlConnection()).GenerateMigration(oldSchema, newSchema)
 
 	// Validate migration SQL
 	expected := `-- Migration for table: User
@@ -165,7 +166,7 @@ ALTER TABLE User ADD COLUMN email VARCHAR(255) NOT NULL;
 	// Run all test cases
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			migration := NewTranslator(DefaultMysqlConnection()).GenerateMigration(test.oldSchema, test.newSchema)
+			migration := NewTranslator(db.DefaultMysqlConnection()).GenerateMigration(test.oldSchema, test.newSchema)
 
 			// Normalize strings for comparison
 			normalize := func(input string) string {

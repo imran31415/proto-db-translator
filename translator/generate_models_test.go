@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/imran31415/proto-db-translator/translator/db"
 	userauth "github.com/imran31415/proto-db-translator/user"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -21,7 +22,7 @@ func TestProcessProtoMessages(t *testing.T) {
 		fmt.Println("Error clearing dir:", err)
 		t.Fail()
 	}
-	translator := NewTranslator(DefaultMysqlConnection())
+	translator := NewTranslator(db.DefaultMysqlConnection())
 
 	protoMessages := []proto.Message{
 		&userauth.User{}, // Replace with your actual proto message types

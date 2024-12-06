@@ -8,6 +8,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"github.com/imran31415/proto-db-translator/translator/db"
+
 )
 
 func TestValidateSqlite(t *testing.T) {
@@ -36,7 +38,7 @@ func TestValidateSqlite(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize translator
-			translator := NewTranslator(DefaultSqliteConnection())
+			translator := NewTranslator(db.DefaultSqliteConnection())
 
 			// Validate schema
 			err := translator.ValidateSchema(protoList(test.proto), "root:Password123!@tcp(localhost)/testt")
@@ -77,7 +79,7 @@ func TestValidateMysql(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize translator
-			translator := NewTranslator(DefaultMysqlConnection())
+			translator := NewTranslator(db.DefaultMysqlConnection())
 
 			// Validate schema
 			err := translator.ValidateSchema(protoList(test.proto), "root:Password123!@tcp(localhost)/")
@@ -97,21 +99,21 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 	// Define test cases
 	testCases := []struct {
 		name             string
-		dbType           DatabaseType
+		dbType           db.DatabaseType
 		schema           proto.Message
 		connectionString string
 		expectedErrors   []string
 	}{
 		{
 			name:             "Invalid Sql Schema 1 - SQLite",
-			dbType:           DatabaseTypeSQLite,
+			dbType:           db.DatabaseTypeSQLite,
 			schema:           &userauth.InvalidSqlSchema1{},
 			connectionString: ":memory:",
 			expectedErrors:   []string{"missing or invalid db_column annotation"},
 		},
 		{
 			name:             "Invalid Sql Schema 1 - MYSQL",
-			dbType:           DatabaseTypeMySQL,
+			dbType:           db.DatabaseTypeMySQL,
 			schema:           &userauth.InvalidSqlSchema1{},
 			connectionString: "root:Password123!@tcp(localhost)/",
 			expectedErrors:   []string{"missing or invalid db_column annotation"},
@@ -124,7 +126,7 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 		// },
 		{
 			name:             "Invalid Sql Schema 2 - MySQL",
-			dbType:           DatabaseTypeMySQL,
+			dbType:           db.DatabaseTypeMySQL,
 			schema:           &userauth.InvalidSqlSchema2{},
 			connectionString: "root:Password123!@tcp(localhost)/",
 			expectedErrors:   []string{"Failed to open the referenced table 'NonExistentTable'"},
@@ -138,14 +140,14 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 		// },
 		{
 			name:             "Invalid Sql Schema 4 - MySQL",
-			dbType:           DatabaseTypeMySQL,
+			dbType:           db.DatabaseTypeMySQL,
 			schema:           &userauth.InvalidSqlSchema4{},
 			connectionString: "root:Password123!@tcp(localhost)/",
 			expectedErrors:   []string{"You have an error in your SQL syntax"},
 		},
 		{
 			name:             "Invalid Sql Schema 5 - MySQL",
-			dbType:           DatabaseTypeMySQL,
+			dbType:          db.DatabaseTypeMySQL,
 			schema:           &userauth.InvalidSqlSchema5{},
 			connectionString: "root:Password123!@tcp(localhost)/",
 			expectedErrors:   []string{"Unknown character set: 'unsupported_charset"},
@@ -164,11 +166,11 @@ func TestInvalidSqlSchemaValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var translator Translator
 			switch tc.dbType {
-			case DatabaseTypeMySQL:
-				translator = NewTranslator(DefaultMysqlConnection())
+			case db.DatabaseTypeMySQL:
+				translator = NewTranslator(db.DefaultMysqlConnection())
 
-			case DatabaseTypeSQLite:
-				translator = NewTranslator(DefaultSqliteConnection())
+			case db.DatabaseTypeSQLite:
+				translator = NewTranslator(db.DefaultSqliteConnection())
 
 			}
 

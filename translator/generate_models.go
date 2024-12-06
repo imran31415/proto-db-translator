@@ -18,13 +18,11 @@ func (t Translator) GenerateModels(outputDir string, protoMessages []proto.Messa
 	if err != nil {
 		return fmt.Errorf("failed to connect to MySQL: %w", err)
 	}
-	defer func() {
-		_, dropErr := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", t.dbConnection.DbName))
-		if dropErr != nil {
-			fmt.Printf("Failed to drop test database: %v\n", dropErr)
-		}
-		db.Close()
-	}()
+	defer db.Close()
+	_, dropErr := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", t.dbConnection.DbName))
+	if dropErr != nil {
+		fmt.Printf("Failed to drop test database: %v\n", dropErr)
+	}
 
 	// Step 2: Create and switch to the test database
 	_, err = db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", t.dbConnection.DbName))

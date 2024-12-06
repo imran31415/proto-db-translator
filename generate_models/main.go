@@ -5,6 +5,8 @@ import (
 	"log"
 
 	proto_db "github.com/imran31415/proto-db-translator/translator"
+	"github.com/imran31415/proto-db-translator/translator/db"
+
 	user_proto "github.com/imran31415/proto-db-translator/user"
 	"google.golang.org/protobuf/proto"
 	// "google.golang.org/protobuf/proto"
@@ -12,7 +14,7 @@ import (
 
 func main() {
 
-	translator := proto_db.NewTranslator(proto_db.DefaultMysqlConnection())
+	translator := proto_db.NewTranslator(db.DefaultMysqlConnection())
 	log.Println("successfully initialized translator")
 
 	inputProtos := []proto.Message{

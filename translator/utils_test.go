@@ -3,6 +3,7 @@ package proto_db
 import (
 	"testing"
 
+	"github.com/imran31415/proto-db-translator/translator/db"
 	dbAn "github.com/imran31415/protobuf-db/db-annotations"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
@@ -33,7 +34,7 @@ func TestExtractFieldSchema(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupField     func() *descriptorpb.FieldDescriptorProto
-		dbType         DatabaseType
+		dbType         db.DatabaseType
 		expectedResult ColumnSchema
 		expectedError  string
 	}{
@@ -47,7 +48,7 @@ func TestExtractFieldSchema(t *testing.T) {
 					[]dbAn.DbConstraint{dbAn.DbConstraint_DB_CONSTRAINT_NOT_NULL},
 				)
 			},
-			dbType: DatabaseTypeMySQL,
+			dbType: db.DatabaseTypeMySQL,
 			expectedResult: ColumnSchema{
 				Name:        "username",
 				Type:        "VARCHAR(255)",
@@ -65,7 +66,7 @@ func TestExtractFieldSchema(t *testing.T) {
 					nil,
 				)
 			},
-			dbType:         DatabaseTypeMySQL,
+			dbType:         db.DatabaseTypeMySQL,
 			expectedResult: ColumnSchema{},
 			expectedError:  "missing or invalid db_column annotation",
 		},
@@ -79,7 +80,7 @@ func TestExtractFieldSchema(t *testing.T) {
 					[]dbAn.DbConstraint{dbAn.DbConstraint_DB_CONSTRAINT_NOT_NULL},
 				)
 			},
-			dbType: DatabaseTypeMySQL,
+			dbType: db.DatabaseTypeMySQL,
 			expectedResult: ColumnSchema{
 				Name:        "balance",
 				Type:        "FLOAT",
