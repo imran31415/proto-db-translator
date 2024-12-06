@@ -106,11 +106,11 @@ func main() {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Write to `main.go` file
+	// Write to `setup.go` file
 	filePath := filepath.Join(outputDir, "main.go")
 	file, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to create main.go file: %w", err)
+		return fmt.Errorf("failed to create setup.go file: %w", err)
 	}
 	defer file.Close()
 

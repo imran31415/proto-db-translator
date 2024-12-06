@@ -1,0 +1,18 @@
+// service_impl.tmpl
+package {{.PackageName}}
+
+import (
+	"context"
+	"fmt"
+)
+
+type Server struct {
+	Unimplemented{{.ServiceName}}Server
+}
+
+{{range .Methods}}
+// {{.MethodName}} implements the {{.Operation}} operation for {{.ServiceName}}.
+func (s *Server) {{.MethodName}}(ctx context.Context, req *{{.RequestType}}) (*{{.ResponseType}}, error) {
+	return nil, fmt.Errorf("method {{.MethodName}} not implemented")
+}
+{{end}}

@@ -184,3 +184,11 @@ message Customer {
       (db_annotations.db_update_action) = DB_UPDATE_ACTION_CURRENT_TIMESTAMP
     ];
   }
+
+  service OrderService {
+    rpc CreateOrder(Orders) returns (Orders) {
+      option (db_annotations.db_operation) = "CREATE";
+      option (db_annotations.db_model) = "Order";
+    }
+
+  }

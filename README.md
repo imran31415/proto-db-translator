@@ -43,25 +43,28 @@ To use DB annotations do the following:
 Run protoc referencing the path of the cloned repo `--proto_path=./protobuf-db/proto \`
 
 
-```bash 
 export PATH=$PATH:$HOME/go/bin
-protoc -I . \
+protoc \
+       -I . \
+       -I /opt/homebrew/include \
        --plugin=protoc-gen-ts_proto=$(pwd)/node_modules/.bin/protoc-gen-ts_proto \
        --ts_proto_out=./ts_out \
        --ts_proto_opt=esModuleInterop=true,outputEncodeMethods=false,outputJsonMethods=false,outputClientImpl=false \
        --go_out=./ \
        --go-grpc_out=./ \
        --grpc-gateway_out=./ \
+       --descriptor_set_out=./user/desc.pb \
+       --include_imports \
+       --include_source_info \
        --proto_path=./protobuf-db/proto \
+       --proto_path=/opt/homebrew/include/google/protobuf/ \
        --proto_path=./proto \
        ./proto/role.proto \
        ./proto/role_hierarchy.proto \
        ./proto/invalid_schema.proto \
        ./proto/user.proto \
        ./proto/order_details.proto \
-       ./proto/order.proto
-```
-
+       ./proto/order.proto 
 
 
 ## Upgrade:
