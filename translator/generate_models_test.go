@@ -2,6 +2,7 @@ package proto_db
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,11 @@ import (
 func TestProcessProtoMessages(t *testing.T) {
 
 	outputDir := "../generated_models"
+
+	err := createDirIfNotExists(outputDir)
+	if err != nil {
+		t.Fatalf("Error creating directory: %v", err)
+	}
 
 	if err := clearDirectory(outputDir); err != nil {
 		fmt.Println("Error clearing dir:", err)
@@ -35,7 +41,7 @@ func TestProcessProtoMessages(t *testing.T) {
 		&userauth.OrderItems{},
 	}
 
-	err := translator.GenerateModels(outputDir, protoMessages)
+	err = translator.GenerateModels(outputDir, protoMessages)
 	if err != nil {
 		fmt.Println("err is", err)
 	}
@@ -69,6 +75,21 @@ func clearDirectory(outputDir string) error {
 		if err := os.Remove(fullPath); err != nil {
 			return fmt.Errorf("failed to remove file %s: %v", fullPath, err)
 		}
+	}
+	return nil
+}
+
+func createDirIfNotExists(dir string) error {
+	// Check if the directory exists
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// Create the directory with appropriate permissions
+		err := os.MkdirAll(dir, 0755) // 0755 allows read/write/execute for the owner, and read/execute for others
+		if err != nil {
+			return err
+		}
+		log.Printf("Directory created: %s\n", dir)
+	} else {
+		log.Printf("Directory already exists: %s\n", dir)
 	}
 	return nil
 }
