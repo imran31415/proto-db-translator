@@ -3,10 +3,13 @@ package proto_db
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,21 +39,28 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 
 	case DatabaseTypeMySQL:
 		// Connect to MySQL
-		db, openErr = sql.Open("mysql", dsn)
+		db, openErr = sql.Open("mysql", dsn+"?multiStatements=true")
 		if openErr != nil {
 			return fmt.Errorf("failed to connect to MySQL database: %w", openErr)
 		}
+
 		// Create a temporary database for validation
-		tempDB := "test_validate"
-		// Ensure the temporary database is dropped after validation
-		defer func() {
-			_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", tempDB))
-			defer db.Close()
-		}()
-		_, err := db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", tempDB))
+		tempDB := "tempdb" + strings.Replace(uuid.NewString(), "-", "", 10)
+		// ensure clean validation
+		_, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", tempDB))
 		if err != nil {
 			return fmt.Errorf("failed to create temporary database: %w", err)
 		}
+
+		// Ensure the temporary database is dropped after validation
+		_, err = db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", tempDB))
+		if err != nil {
+			return fmt.Errorf("failed to create temporary database: %w", err)
+		}
+		defer func() {
+			db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", tempDB))
+
+		}()
 
 		// Switch to the temporary database
 		_, err = db.Exec(fmt.Sprintf("USE %s", tempDB))
@@ -73,8 +83,9 @@ func (t Translator) ValidateSchema(protoMessages []proto.Message, dsn string) er
 
 		_, err = db.Exec(createTableSQL)
 		if err != nil {
-			return fmt.Errorf("schema validation failed for table '%s': %w\nSQL: %s", tableName, err, createTableSQL)
+			return fmt.Errorf("schema validation failed for table: %s.  err: %s\nSQL: %s", tableName, err, createTableSQL)
 		}
+		log.Printf("Successfully validated %s", tableName)
 	}
 
 	return nil

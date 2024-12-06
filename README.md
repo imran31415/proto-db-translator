@@ -58,7 +58,8 @@ protoc -I . \
        ./proto/role_hierarchy.proto \
        ./proto/invalid_schema.proto \
        ./proto/user.proto \
-       ./proto/order_details.proto
+       ./proto/order_details.proto \
+       ./proto/order.proto
 ```
 
 

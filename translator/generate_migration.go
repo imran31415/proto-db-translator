@@ -6,6 +6,7 @@ import (
 )
 
 // Compare schemas and generate migration SQL
+// This is a basic example and is a WIP
 func (t Translator) GenerateMigration(oldSchema, newSchema Schema) string {
 	var migration strings.Builder
 	migration.WriteString(fmt.Sprintf("-- Migration for table: %s\n", newSchema.TableName))

@@ -5,10 +5,13 @@ package generated_models
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
+	"strings"
 	"time"
 )
 
-// User represents a row from 'prototestdb123.User'.
+// User represents a row from 'User'.
 type User struct {
 	ID              int            `json:"id"`                // id
 	Username        string         `json:"username"`          // username
@@ -42,7 +45,7 @@ func (u *User) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (manual)
-	const sqlstr = `INSERT INTO prototestdb123.User (` +
+	const sqlstr = `INSERT INTO User (` +
 		`id, username, email, hashed_password, is_2fa_enabled, two_factor_secret, created_at, updated_at` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?, ?, ?, ?` +
@@ -66,7 +69,7 @@ func (u *User) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with primary key
-	const sqlstr = `UPDATE prototestdb123.User SET ` +
+	const sqlstr = `UPDATE User SET ` +
 		`username = ?, email = ?, hashed_password = ?, is_2fa_enabled = ?, two_factor_secret = ?, created_at = ?, updated_at = ? ` +
 		`WHERE id = ?`
 	// run
@@ -92,7 +95,7 @@ func (u *User) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO prototestdb123.User (` +
+	const sqlstr = `INSERT INTO User (` +
 		`id, username, email, hashed_password, is_2fa_enabled, two_factor_secret, created_at, updated_at` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?, ?, ?, ?` +
@@ -118,7 +121,7 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM prototestdb123.User ` +
+	const sqlstr = `DELETE FROM User ` +
 		`WHERE id = ?`
 	// run
 	logf(sqlstr, u.ID)
@@ -130,14 +133,114 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// UserByID retrieves a row from 'prototestdb123.User' as a [User].
+// UserKeysetPage retrieves a page of [User] records using keyset pagination with dynamic filtering.
+//
+// The keyset pagination retrieves results after or before a specific value (`key`)
+// for a given column (`column`) with a limit (`limit`) and order (`ASC` or `DESC`).
+//
+// If `order` is `ASC`, it retrieves records where the value of `column` is greater than `key`.
+// If `order` is `DESC`, it retrieves records where the value of `column` is less than `key`.
+//
+// Filters are dynamically provided via a `filters` map, where keys are column names and values are either single values or slices for `IN` clauses.
+func UserKeysetPage(ctx context.Context, db DB, column string, key interface{}, limit int, order string, filters map[string]interface{}) ([]*User, *User, error) {
+	if order != "ASC" && order != "DESC" {
+		return nil, nil, fmt.Errorf("invalid order: %s", order)
+	}
+
+	// Start building the query
+	query := fmt.Sprintf(
+		`SELECT * FROM User 
+         WHERE %s %s ?`,
+		column, condition(order),
+	)
+
+	// Arguments for the query
+	args := []interface{}{key}
+
+	// Dynamically add filters from the `filters` map to the query
+	for field, value := range filters {
+		switch v := value.(type) {
+		case []int:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		case []string:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		default:
+			// Handle NULL and NOT NULL checks
+			if value == nil {
+				query += fmt.Sprintf(" AND %s IS NULL", field)
+			} else if value == "NOT NULL" {
+				query += fmt.Sprintf(" AND %s IS NOT NULL", field)
+			} else {
+				query += fmt.Sprintf(" AND %s = ?", field)
+				args = append(args, value)
+			}
+		}
+	}
+
+	// Finalize the query with the order and limit
+	query += fmt.Sprintf(" ORDER BY %s %s LIMIT ?", column, order)
+	args = append(args, limit)
+
+	// Log the final query for debugging purposes
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	// Execute the query
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, logerror(err)
+	}
+	defer rows.Close()
+
+	var results []*User
+	var lastItem *User // Variable to store the last item
+
+	for rows.Next() {
+		u := User{
+			_exists: true,
+		}
+		if err := rows.Scan(
+			&u.ID, &u.Username, &u.Email, &u.HashedPassword, &u.Is2faEnabled, &u.TwoFactorSecret, &u.CreatedAt, &u.UpdatedAt,
+		); err != nil {
+			return nil, nil, logerror(err)
+		}
+		results = append(results, &u)
+	}
+
+	// Check for errors during row iteration.
+	if err := rows.Err(); err != nil {
+		return nil, nil, logerror(err)
+	}
+
+	// If we have results, set the lastItem to the last element in results.
+	if len(results) > 0 {
+		lastItem = results[len(results)-1]
+	}
+
+	return results, lastItem, nil
+}
+
+// UserByID retrieves a row from 'User' as a [User].
 //
 // Generated from index 'User_id_pkey'.
 func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, email, hashed_password, is_2fa_enabled, two_factor_secret, created_at, updated_at ` +
-		`FROM prototestdb123.User ` +
+		`FROM User ` +
 		`WHERE id = ?`
 	// run
 	logf(sqlstr, id)
@@ -150,14 +253,14 @@ func UserByID(ctx context.Context, db DB, id int) (*User, error) {
 	return &u, nil
 }
 
-// UserByEmail retrieves a row from 'prototestdb123.User' as a [User].
+// UserByEmail retrieves a row from 'User' as a [User].
 //
 // Generated from index 'email'.
 func UserByEmail(ctx context.Context, db DB, email string) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, email, hashed_password, is_2fa_enabled, two_factor_secret, created_at, updated_at ` +
-		`FROM prototestdb123.User ` +
+		`FROM User ` +
 		`WHERE email = ?`
 	// run
 	logf(sqlstr, email)
@@ -170,14 +273,14 @@ func UserByEmail(ctx context.Context, db DB, email string) (*User, error) {
 	return &u, nil
 }
 
-// UserByUsername retrieves a row from 'prototestdb123.User' as a [User].
+// UserByUsername retrieves a row from 'User' as a [User].
 //
 // Generated from index 'username'.
 func UserByUsername(ctx context.Context, db DB, username string) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`id, username, email, hashed_password, is_2fa_enabled, two_factor_secret, created_at, updated_at ` +
-		`FROM prototestdb123.User ` +
+		`FROM User ` +
 		`WHERE username = ?`
 	// run
 	logf(sqlstr, username)

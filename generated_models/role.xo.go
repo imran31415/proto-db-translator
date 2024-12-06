@@ -5,10 +5,13 @@ package generated_models
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
+	"strings"
 	"time"
 )
 
-// Role represents a row from 'prototestdb123.Role'.
+// Role represents a row from 'Role'.
 type Role struct {
 	RoleID       int            `json:"role_id"`        // role_id
 	RoleName     string         `json:"role_name"`      // role_name
@@ -40,7 +43,7 @@ func (r *Role) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (primary key generated and returned by database)
-	const sqlstr = `INSERT INTO prototestdb123.Role (` +
+	const sqlstr = `INSERT INTO Role (` +
 		`role_name, created_at, updated_at, parent_role_id, description` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?` +
@@ -71,7 +74,7 @@ func (r *Role) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with primary key
-	const sqlstr = `UPDATE prototestdb123.Role SET ` +
+	const sqlstr = `UPDATE Role SET ` +
 		`role_name = ?, created_at = ?, updated_at = ?, parent_role_id = ?, description = ? ` +
 		`WHERE role_id = ?`
 	// run
@@ -97,7 +100,7 @@ func (r *Role) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO prototestdb123.Role (` +
+	const sqlstr = `INSERT INTO Role (` +
 		`role_id, role_name, created_at, updated_at, parent_role_id, description` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?, ?` +
@@ -123,7 +126,7 @@ func (r *Role) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with single primary key
-	const sqlstr = `DELETE FROM prototestdb123.Role ` +
+	const sqlstr = `DELETE FROM Role ` +
 		`WHERE role_id = ?`
 	// run
 	logf(sqlstr, r.RoleID)
@@ -135,14 +138,114 @@ func (r *Role) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// RoleByRoleID retrieves a row from 'prototestdb123.Role' as a [Role].
+// RoleKeysetPage retrieves a page of [Role] records using keyset pagination with dynamic filtering.
+//
+// The keyset pagination retrieves results after or before a specific value (`key`)
+// for a given column (`column`) with a limit (`limit`) and order (`ASC` or `DESC`).
+//
+// If `order` is `ASC`, it retrieves records where the value of `column` is greater than `key`.
+// If `order` is `DESC`, it retrieves records where the value of `column` is less than `key`.
+//
+// Filters are dynamically provided via a `filters` map, where keys are column names and values are either single values or slices for `IN` clauses.
+func RoleKeysetPage(ctx context.Context, db DB, column string, key interface{}, limit int, order string, filters map[string]interface{}) ([]*Role, *Role, error) {
+	if order != "ASC" && order != "DESC" {
+		return nil, nil, fmt.Errorf("invalid order: %s", order)
+	}
+
+	// Start building the query
+	query := fmt.Sprintf(
+		`SELECT * FROM Role 
+         WHERE %s %s ?`,
+		column, condition(order),
+	)
+
+	// Arguments for the query
+	args := []interface{}{key}
+
+	// Dynamically add filters from the `filters` map to the query
+	for field, value := range filters {
+		switch v := value.(type) {
+		case []int:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		case []string:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		default:
+			// Handle NULL and NOT NULL checks
+			if value == nil {
+				query += fmt.Sprintf(" AND %s IS NULL", field)
+			} else if value == "NOT NULL" {
+				query += fmt.Sprintf(" AND %s IS NOT NULL", field)
+			} else {
+				query += fmt.Sprintf(" AND %s = ?", field)
+				args = append(args, value)
+			}
+		}
+	}
+
+	// Finalize the query with the order and limit
+	query += fmt.Sprintf(" ORDER BY %s %s LIMIT ?", column, order)
+	args = append(args, limit)
+
+	// Log the final query for debugging purposes
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	// Execute the query
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, logerror(err)
+	}
+	defer rows.Close()
+
+	var results []*Role
+	var lastItem *Role // Variable to store the last item
+
+	for rows.Next() {
+		r := Role{
+			_exists: true,
+		}
+		if err := rows.Scan(
+			&r.RoleID, &r.RoleName, &r.CreatedAt, &r.UpdatedAt, &r.ParentRoleID, &r.Description,
+		); err != nil {
+			return nil, nil, logerror(err)
+		}
+		results = append(results, &r)
+	}
+
+	// Check for errors during row iteration.
+	if err := rows.Err(); err != nil {
+		return nil, nil, logerror(err)
+	}
+
+	// If we have results, set the lastItem to the last element in results.
+	if len(results) > 0 {
+		lastItem = results[len(results)-1]
+	}
+
+	return results, lastItem, nil
+}
+
+// RoleByRoleID retrieves a row from 'Role' as a [Role].
 //
 // Generated from index 'Role_role_id_pkey'.
 func RoleByRoleID(ctx context.Context, db DB, roleID int) (*Role, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`role_id, role_name, created_at, updated_at, parent_role_id, description ` +
-		`FROM prototestdb123.Role ` +
+		`FROM Role ` +
 		`WHERE role_id = ?`
 	// run
 	logf(sqlstr, roleID)
@@ -155,14 +258,14 @@ func RoleByRoleID(ctx context.Context, db DB, roleID int) (*Role, error) {
 	return &r, nil
 }
 
-// RoleByParentRoleID retrieves a row from 'prototestdb123.Role' as a [Role].
+// RoleByParentRoleID retrieves a row from 'Role' as a [Role].
 //
 // Generated from index 'parent_role_id'.
 func RoleByParentRoleID(ctx context.Context, db DB, parentRoleID sql.NullInt64) ([]*Role, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`role_id, role_name, created_at, updated_at, parent_role_id, description ` +
-		`FROM prototestdb123.Role ` +
+		`FROM Role ` +
 		`WHERE parent_role_id = ?`
 	// run
 	logf(sqlstr, parentRoleID)
@@ -189,14 +292,14 @@ func RoleByParentRoleID(ctx context.Context, db DB, parentRoleID sql.NullInt64) 
 	return res, nil
 }
 
-// RoleByRoleName retrieves a row from 'prototestdb123.Role' as a [Role].
+// RoleByRoleName retrieves a row from 'Role' as a [Role].
 //
 // Generated from index 'role_name'.
 func RoleByRoleName(ctx context.Context, db DB, roleName string) (*Role, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`role_id, role_name, created_at, updated_at, parent_role_id, description ` +
-		`FROM prototestdb123.Role ` +
+		`FROM Role ` +
 		`WHERE role_name = ?`
 	// run
 	logf(sqlstr, roleName)

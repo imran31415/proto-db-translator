@@ -4,10 +4,13 @@ package generated_models
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"strings"
 	"time"
 )
 
-// OrderDetail represents a row from 'prototestdb123.OrderDetails'.
+// OrderDetail represents a row from 'OrderDetails'.
 type OrderDetail struct {
 	OrderID   int       `json:"order_id"`   // order_id
 	ProductID int       `json:"product_id"` // product_id
@@ -38,7 +41,7 @@ func (od *OrderDetail) Insert(ctx context.Context, db DB) error {
 		return logerror(&ErrInsertFailed{ErrMarkedForDeletion})
 	}
 	// insert (manual)
-	const sqlstr = `INSERT INTO prototestdb123.OrderDetails (` +
+	const sqlstr = `INSERT INTO OrderDetails (` +
 		`order_id, product_id, quantity, created_at, updated_at` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?` +
@@ -62,7 +65,7 @@ func (od *OrderDetail) Update(ctx context.Context, db DB) error {
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
 	// update with primary key
-	const sqlstr = `UPDATE prototestdb123.OrderDetails SET ` +
+	const sqlstr = `UPDATE OrderDetails SET ` +
 		`quantity = ?, created_at = ?, updated_at = ? ` +
 		`WHERE order_id = ? AND product_id = ?`
 	// run
@@ -88,7 +91,7 @@ func (od *OrderDetail) Upsert(ctx context.Context, db DB) error {
 		return logerror(&ErrUpsertFailed{ErrMarkedForDeletion})
 	}
 	// upsert
-	const sqlstr = `INSERT INTO prototestdb123.OrderDetails (` +
+	const sqlstr = `INSERT INTO OrderDetails (` +
 		`order_id, product_id, quantity, created_at, updated_at` +
 		`) VALUES (` +
 		`?, ?, ?, ?, ?` +
@@ -114,7 +117,7 @@ func (od *OrderDetail) Delete(ctx context.Context, db DB) error {
 		return nil
 	}
 	// delete with composite primary key
-	const sqlstr = `DELETE FROM prototestdb123.OrderDetails ` +
+	const sqlstr = `DELETE FROM OrderDetails ` +
 		`WHERE order_id = ? AND product_id = ?`
 	// run
 	logf(sqlstr, od.OrderID, od.ProductID)
@@ -126,14 +129,134 @@ func (od *OrderDetail) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
-// OrderDetailByOrderIDProductID retrieves a row from 'prototestdb123.OrderDetails' as a [OrderDetail].
+// OrderDetailKeysetPage retrieves a page of [OrderDetail] records using keyset pagination with dynamic filtering.
+//
+// The keyset pagination retrieves results after or before a specific value (`key`)
+// for a given column (`column`) with a limit (`limit`) and order (`ASC` or `DESC`).
+//
+// If `order` is `ASC`, it retrieves records where the value of `column` is greater than `key`.
+// If `order` is `DESC`, it retrieves records where the value of `column` is less than `key`.
+//
+// Filters are dynamically provided via a `filters` map, where keys are column names and values are either single values or slices for `IN` clauses.
+func OrderDetailKeysetPage(ctx context.Context, db DB, column string, key interface{}, limit int, order string, filters map[string]interface{}) ([]*OrderDetail, *OrderDetail, error) {
+	if order != "ASC" && order != "DESC" {
+		return nil, nil, fmt.Errorf("invalid order: %s", order)
+	}
+
+	// Start building the query
+	query := fmt.Sprintf(
+		`SELECT * FROM OrderDetails 
+         WHERE %s %s ?`,
+		column, condition(order),
+	)
+
+	// Arguments for the query
+	args := []interface{}{key}
+
+	// Dynamically add filters from the `filters` map to the query
+	for field, value := range filters {
+		switch v := value.(type) {
+		case []int:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		case []string:
+			if len(v) > 0 {
+				placeholders := make([]string, len(v))
+				for i := range v {
+					placeholders[i] = "?"
+					args = append(args, v[i])
+				}
+				query += fmt.Sprintf(" AND %s IN (%s)", field, strings.Join(placeholders, ", "))
+			}
+		default:
+			// Handle NULL and NOT NULL checks
+			if value == nil {
+				query += fmt.Sprintf(" AND %s IS NULL", field)
+			} else if value == "NOT NULL" {
+				query += fmt.Sprintf(" AND %s IS NOT NULL", field)
+			} else {
+				query += fmt.Sprintf(" AND %s = ?", field)
+				args = append(args, value)
+			}
+		}
+	}
+
+	// Finalize the query with the order and limit
+	query += fmt.Sprintf(" ORDER BY %s %s LIMIT ?", column, order)
+	args = append(args, limit)
+
+	// Log the final query for debugging purposes
+	log.Printf("Executing query: %s with args: %v", query, args)
+
+	// Execute the query
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, logerror(err)
+	}
+	defer rows.Close()
+
+	var results []*OrderDetail
+	var lastItem *OrderDetail // Variable to store the last item
+
+	for rows.Next() {
+		od := OrderDetail{
+			_exists: true,
+		}
+		if err := rows.Scan(
+			&od.OrderID, &od.ProductID, &od.Quantity, &od.CreatedAt, &od.UpdatedAt,
+		); err != nil {
+			return nil, nil, logerror(err)
+		}
+		results = append(results, &od)
+	}
+
+	// Check for errors during row iteration.
+	if err := rows.Err(); err != nil {
+		return nil, nil, logerror(err)
+	}
+
+	// If we have results, set the lastItem to the last element in results.
+	if len(results) > 0 {
+		lastItem = results[len(results)-1]
+	}
+
+	return results, lastItem, nil
+}
+
+// OrderDetailByCreatedAtOrderID retrieves a row from 'OrderDetails' as a [OrderDetail].
+//
+// Generated from index 'OrderDetails_created_at_order_id_idx'.
+func OrderDetailByCreatedAtOrderID(ctx context.Context, db DB, createdAt time.Time, orderID int) (*OrderDetail, error) {
+	// query
+	const sqlstr = `SELECT ` +
+		`order_id, product_id, quantity, created_at, updated_at ` +
+		`FROM OrderDetails ` +
+		`WHERE created_at = ? AND order_id = ?`
+	// run
+	logf(sqlstr, createdAt, orderID)
+	od := OrderDetail{
+		_exists: true,
+	}
+	if err := db.QueryRowContext(ctx, sqlstr, createdAt, orderID).Scan(&od.OrderID, &od.ProductID, &od.Quantity, &od.CreatedAt, &od.UpdatedAt); err != nil {
+		return nil, logerror(err)
+	}
+	return &od, nil
+}
+
+// OrderDetailByOrderIDProductID retrieves a row from 'OrderDetails' as a [OrderDetail].
 //
 // Generated from index 'OrderDetails_order_id_product_id_pkey'.
 func OrderDetailByOrderIDProductID(ctx context.Context, db DB, orderID, productID int) (*OrderDetail, error) {
 	// query
 	const sqlstr = `SELECT ` +
 		`order_id, product_id, quantity, created_at, updated_at ` +
-		`FROM prototestdb123.OrderDetails ` +
+		`FROM OrderDetails ` +
 		`WHERE order_id = ? AND product_id = ?`
 	// run
 	logf(sqlstr, orderID, productID)
@@ -141,6 +264,26 @@ func OrderDetailByOrderIDProductID(ctx context.Context, db DB, orderID, productI
 		_exists: true,
 	}
 	if err := db.QueryRowContext(ctx, sqlstr, orderID, productID).Scan(&od.OrderID, &od.ProductID, &od.Quantity, &od.CreatedAt, &od.UpdatedAt); err != nil {
+		return nil, logerror(err)
+	}
+	return &od, nil
+}
+
+// OrderDetailByProductIDQuantity retrieves a row from 'OrderDetails' as a [OrderDetail].
+//
+// Generated from index 'OrderDetails_product_id_quantity_idx'.
+func OrderDetailByProductIDQuantity(ctx context.Context, db DB, productID, quantity int) (*OrderDetail, error) {
+	// query
+	const sqlstr = `SELECT ` +
+		`order_id, product_id, quantity, created_at, updated_at ` +
+		`FROM OrderDetails ` +
+		`WHERE product_id = ? AND quantity = ?`
+	// run
+	logf(sqlstr, productID, quantity)
+	od := OrderDetail{
+		_exists: true,
+	}
+	if err := db.QueryRowContext(ctx, sqlstr, productID, quantity).Scan(&od.OrderID, &od.ProductID, &od.Quantity, &od.CreatedAt, &od.UpdatedAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &od, nil

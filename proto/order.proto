@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package userauth;
+
+import "google/protobuf/timestamp.proto";
+import "protobuf-db/proto/database_operations.proto";
+option go_package = "/user";
+
+message Orders {
+  option (db_annotations.db_composite_index) = "order_date,status";
+  option (db_annotations.db_check_constraint) = "total_amount > 0";
+
+  int32 order_id = 1 [
+    (db_annotations.db_column) = "order_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_primary_key) = true
+  ];
+
+  int32 customer_id = 2 [
+    (db_annotations.db_column) = "customer_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_foreign_key_table) = "Customer",
+    (db_annotations.db_foreign_key_column) = "customer_id",
+    (db_annotations.db_on_delete) = DB_FOREIGN_KEY_ACTION_CASCADE
+  ];
+
+  google.protobuf.Timestamp order_date = 3 [
+    (db_annotations.db_column) = "order_date",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW
+  ];
+
+  double total_amount = 4 [
+    (db_annotations.db_column) = "total_amount",
+    (db_annotations.db_column_type) = DB_TYPE_FLOAT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  string status = 5 [
+    (db_annotations.db_column) = "status",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.custom_default_value) = "'pending'"
+  ];
+}
+
+message Product {
+  int32 product_id = 1 [
+    (db_annotations.db_column) = "product_id",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_primary_key) = true,
+    (db_annotations.db_auto_increment) = true
+  ];
+
+  string name = 2 [
+    (db_annotations.db_column) = "name",
+    (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_constraints)= DB_CONSTRAINT_UNIQUE,
+    (db_annotations.db_character_set) = "utf8mb4",
+    (db_annotations.db_collate) = "utf8mb4_general_ci"
+  ];
+
+  string description = 3 [
+    (db_annotations.db_column) = "description",
+    (db_annotations.db_column_type) = DB_TYPE_TEXT
+  ];
+
+  float price = 4 [
+    (db_annotations.db_column) = "price",
+    (db_annotations.db_column_type) = DB_TYPE_FLOAT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  int32 stock_quantity = 5 [
+    (db_annotations.db_column) = "stock_quantity",
+    (db_annotations.db_column_type) = DB_TYPE_INT,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+  ];
+
+  google.protobuf.Timestamp created_at = 6 [
+    (db_annotations.db_column) = "created_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW
+  ];
+
+  google.protobuf.Timestamp updated_at = 7 [
+    (db_annotations.db_column) = "updated_at",
+    (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+    (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+    (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW,
+    (db_annotations.db_update_action) = DB_UPDATE_ACTION_CURRENT_TIMESTAMP
+  ];
+}
+
+message OrderItems {
+    option (db_annotations.db_check_constraint) = "quantity > 0";
+    option (db_annotations.db_check_constraint) = "price_per_unit >= 0";
+    option (db_annotations.db_unique_constraint) = "order_id,product_id";
+  
+    int32 order_item_id = 1 [
+      (db_annotations.db_column) = "order_item_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_auto_increment) = true,
+      (db_annotations.db_primary_key) = true
+    ];
+  
+    int32 order_id = 2 [
+      (db_annotations.db_column) = "order_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_foreign_key_table) = "Orders",
+      (db_annotations.db_foreign_key_column) = "order_id",
+      (db_annotations.db_on_delete) = DB_FOREIGN_KEY_ACTION_CASCADE
+    ];
+  
+    int32 product_id = 3 [
+      (db_annotations.db_column) = "product_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_foreign_key_table) = "Product",
+      (db_annotations.db_foreign_key_column) = "product_id"
+    ];
+  
+    int32 quantity = 4 [
+      (db_annotations.db_column) = "quantity",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+    ];
+  
+    double price_per_unit = 5 [
+      (db_annotations.db_column) = "price_per_unit",
+      (db_annotations.db_column_type) = DB_TYPE_FLOAT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+    ];
+  }
+
+
+// Message for the Customer entity
+message Customer {
+    int32 customer_id = 1 [
+      (db_annotations.db_column) = "customer_id",
+      (db_annotations.db_column_type) = DB_TYPE_INT,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_primary_key) = true
+    ];
+  
+    string customer_name = 2 [
+      (db_annotations.db_column) = "customer_name",
+      (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL
+    ];
+  
+    string email = 3 [
+      (db_annotations.db_column) = "email",
+      (db_annotations.db_column_type) = DB_TYPE_VARCHAR,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_UNIQUE
+    ];
+  
+    string phone = 4 [
+      (db_annotations.db_column) = "phone",
+      (db_annotations.db_column_type) = DB_TYPE_VARCHAR
+    ];
+  
+    google.protobuf.Timestamp created_at = 5 [
+      (db_annotations.db_column) = "created_at",
+      (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW
+    ];
+  
+    google.protobuf.Timestamp updated_at = 6 [
+      (db_annotations.db_column) = "updated_at",
+      (db_annotations.db_column_type) = DB_TYPE_DATETIME,
+      (db_annotations.db_constraints) = DB_CONSTRAINT_NOT_NULL,
+      (db_annotations.db_default_function) = DB_DEFAULT_FUNCTION_NOW,
+      (db_annotations.db_update_action) = DB_UPDATE_ACTION_CURRENT_TIMESTAMP
+    ];
+  }

@@ -2,7 +2,6 @@ package proto_db
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	dbAn "github.com/imran31415/protobuf-db/db-annotations"
@@ -11,6 +10,134 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+func extractFieldSchema(field protoreflect.FieldDescriptor, dbType DatabaseType) (ColumnSchema, error) {
+	var column ColumnSchema
+
+	// Extract field options
+	options := field.Options().(*descriptorpb.FieldOptions)
+	if options == nil {
+		return column, fmt.Errorf("missing field options for field %s", field.Name())
+	}
+	// Extract annotations with error checking
+	dbColumn, ok := proto.GetExtension(options, dbAn.E_DbColumn).(string)
+	if !ok || dbColumn == "" {
+		return column, fmt.Errorf("missing or invalid db_column annotation")
+	}
+
+	dbColumnType, ok := proto.GetExtension(options, dbAn.E_DbColumnType).(dbAn.DbColumnType)
+	if !ok {
+		return column, fmt.Errorf("missing or invalid db_type annotation")
+	}
+
+	dbConstraints, ok := proto.GetExtension(options, dbAn.E_DbConstraints).([]dbAn.DbConstraint)
+	if !ok {
+		dbConstraints = []dbAn.DbConstraint{} // Default to no constraints if not specified
+	}
+
+	dbDefault, ok := proto.GetExtension(options, dbAn.E_DbDefault).(dbAn.DbDefault)
+	if !ok {
+		dbDefault = dbAn.DbDefault_DB_DEFAULT_UNSPECIFIED
+	}
+
+	customDefaultValue, ok := proto.GetExtension(options, dbAn.E_CustomDefaultValue).(string)
+	if !ok {
+		customDefaultValue = ""
+	}
+
+	dbPrimaryKey, ok := proto.GetExtension(options, dbAn.E_DbPrimaryKey).(bool)
+	if !ok {
+		dbPrimaryKey = false
+	}
+
+	dbUpdateAction, ok := proto.GetExtension(options, dbAn.E_DbUpdateAction).(dbAn.DbUpdateAction)
+	if !ok {
+		dbUpdateAction = dbAn.DbUpdateAction_DB_UPDATE_ACTION_UNSPECIFIED
+	}
+
+	// Foreign key data
+	foreignKeyTable, _ := proto.GetExtension(options, dbAn.E_DbForeignKeyTable).(string)
+	foreignKeyColumn, _ := proto.GetExtension(options, dbAn.E_DbForeignKeyColumn).(string)
+	onDelete, _ := proto.GetExtension(options, dbAn.E_DbOnDelete).(dbAn.DbForeignKeyAction)
+	onUpdate, ok := proto.GetExtension(options, dbAn.E_DbOnUpdate).(dbAn.DbForeignKeyAction)
+	dbAutoIncrement, _ := proto.GetExtension(options, dbAn.E_DbAutoIncrement).(bool)
+	dbPrecision, _ := proto.GetExtension(options, dbAn.E_DbPrecision).(int32)
+	dbScale, _ := proto.GetExtension(options, dbAn.E_DbScale).(int32)
+
+	// Format precision/scale for DECIMAL type
+	precisionScale := ""
+	if dbPrecision > 0 {
+		precisionScale = fmt.Sprintf("(%d", dbPrecision)
+		if dbScale > 0 {
+			precisionScale += fmt.Sprintf(",%d", dbScale)
+		}
+		precisionScale += ")"
+	}
+
+	// Parse constraints and foreign key details
+	constraints := parseConstraints(dbConstraints, dbDefault, customDefaultValue, dbUpdateAction, dbType)
+	// Extract character set and collation
+	characterSet, _ := proto.GetExtension(options, dbAn.E_DbCharacterSet).(string)
+	collation, _ := proto.GetExtension(options, dbAn.E_DbCollate).(string)
+	defaultFunction, _ := proto.GetExtension(options, dbAn.E_DbDefaultFunction).(dbAn.DbDefaultFunction)
+
+	var defaultFunc string
+	switch defaultFunction {
+	case dbAn.DbDefaultFunction_DB_DEFAULT_FUNCTION_UUID:
+		defaultFunc = "UUID()"
+	case dbAn.DbDefaultFunction_DB_DEFAULT_FUNCTION_NOW:
+		switch dbType {
+		case DatabaseTypeSQLite:
+			defaultFunc = "CURRENT_TIMESTAMP"
+		default:
+			defaultFunc = "CURRENT_TIMESTAMP"
+		}
+	}
+
+	column = ColumnSchema{
+		Name:             dbColumn,
+		Type:             dbColumnTypeToMySQLType(dbColumnType),
+		Constraints:      constraints,
+		IsPrimaryKey:     dbPrimaryKey,
+		ForeignKeyTable:  foreignKeyTable,
+		ForeignKeyColumn: foreignKeyColumn,
+		OnDelete:         parseForeignKeyAction(onDelete),
+		OnUpdate:         parseForeignKeyAction(onUpdate),
+		AutoIncrement:    dbAutoIncrement,
+		Precision:        dbPrecision,
+		Scale:            dbScale,
+		CharacterSet:     characterSet,
+		Collation:        collation,
+		DefaultFunction:  defaultFunc,
+	}
+
+	return column, nil
+}
+
+func parseCompositePrimaryKeys(md protoreflect.MessageDescriptor) string {
+	options, ok := md.Options().(*descriptorpb.MessageOptions)
+	if !ok || options == nil {
+		return ""
+	}
+
+	// fmt.Printf("Options: %+v\n", options)
+
+	// Check if the extension is present before accessing it
+	if !proto.HasExtension(options, dbAn.E_DbCompositePrimaryKey) {
+		fmt.Println("No composite primary key extension found in options")
+		return ""
+	}
+
+	// Safely extract the composite primary keys
+	compositeKeys, ok := proto.GetExtension(options, dbAn.E_DbCompositePrimaryKey).(string)
+	if !ok {
+		fmt.Println("Failed to extract composite primary keys")
+		return ""
+	}
+
+	// fmt.Printf("Composite Primary Keys Parsed: %v\n", compositeKeys)
+	return compositeKeys
+}
 
 // Convert DbColumnType enum to MySQL type
 func dbColumnTypeToMySQLType(dbType dbAn.DbColumnType) string {
@@ -142,7 +269,6 @@ func parseCompositeIndexes(md protoreflect.MessageDescriptor) []string {
 	if !ok || options == nil {
 		return nil
 	}
-	log.Println("Attempting to get composite raw indexes")
 
 	// Extract the composite index string
 	compositeIndexStr, ok := proto.GetExtension(options, dbAn.E_DbCompositeIndex).(string)
@@ -152,7 +278,7 @@ func parseCompositeIndexes(md protoreflect.MessageDescriptor) []string {
 
 	// Split by semicolons to get individual indexes
 	rawIndexes := strings.Split(compositeIndexStr, ";")
-	log.Println("Found composite raw indexes: ", rawIndexes)
+	// log.Println("Found composite raw indexes: ", rawIndexes)
 	return rawIndexes
 }
 func parseForeignKeyAction(action dbAn.DbForeignKeyAction) string {
@@ -185,11 +311,35 @@ func parseTableLevelConstraints(md protoreflect.MessageDescriptor) (uniqueConstr
 
 	// Parse CHECK constraints
 	if proto.HasExtension(options, dbAn.E_DbCheckConstraint) {
-		check, ok := proto.GetExtension(options, dbAn.E_DbCheckConstraint).([]string)
-		if ok {
-			checkConstraints = append(checkConstraints, check...)
+		if check, ok := proto.GetExtension(options, dbAn.E_DbCheckConstraint).([]string); ok {
+			checkConstraints = check
 		}
 	}
 
 	return
+}
+
+func generateIndexName(index string, tableName string) string {
+	sanitizedIndex := strings.ReplaceAll(index, ",", "_") // Replace commas with underscores
+	return fmt.Sprintf("%s_%s_idx", tableName, sanitizedIndex)
+}
+
+// Helper: Check if a column exists in the schema
+func findColumnInSchema(columnName string, columns []ColumnSchema) (ColumnSchema, bool) {
+	for _, col := range columns {
+		if col.Name == columnName {
+			return col, true
+		}
+	}
+	return ColumnSchema{}, false
+}
+
+// Helper function to check if a slice contains a speci fic value
+func contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }

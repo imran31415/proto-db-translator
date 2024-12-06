@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"log"
 
 	proto_db "github.com/imran31415/proto-db-translator/translator"
 	user_proto "github.com/imran31415/proto-db-translator/user"
@@ -11,21 +11,27 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: go-cli <output_dir> <proto_files...>")
 
-		translator := proto_db.NewTranslator(proto_db.DefaultMysqlConnection())
+	translator := proto_db.NewTranslator(proto_db.DefaultMysqlConnection())
+	log.Println("successfully initialized translator")
 
-		inputProtos := []proto.Message{
-			&user_proto.User{},
-			&user_proto.Role{},
-			&user_proto.RoleHierarchy{},
-			&user_proto.OrderDetails{},
-		}
-
-		translator.ProcessProtoMessages("../generated_models", inputProtos)
-
-		fmt.Println("Successfully created trasnlator")
-		os.Exit(1)
+	inputProtos := []proto.Message{
+		&user_proto.User{},
+		&user_proto.Role{},
+		&user_proto.RoleHierarchy{},
+		&user_proto.Customer{},
+		&user_proto.Product{},
+		&user_proto.Orders{},
+		&user_proto.OrderDetails{},
+		&user_proto.OrderItems{},
 	}
+
+	err := translator.GenerateModels("../generated_models", inputProtos)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	fmt.Println("Successfully created tables and modelsr")
+
 }

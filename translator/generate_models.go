@@ -9,36 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func (t Translator) GenerateModel(dbConnStr, tableName, outputDir string) error {
-	// Check if XO is installed
-	_, err := exec.LookPath("xo")
-	if err != nil {
-		return fmt.Errorf("xo is not installed: %w", err)
-	}
-
-	// Build the XO command
-	cmdArgs := []string{
-		"schema",           // XO subcommand for schema inspection
-		dbConnStr,          // Database connection string as positional argument
-		"--out", outputDir, // Output directory for generated models
-		"--include", tableName, // Include only the specified table
-	}
-
-	// Prepare XO command
-	cmd := exec.Command("xo", cmdArgs...)
-	cmd.Stdout = os.Stdout // Forward XO's stdout for visibility
-	cmd.Stderr = os.Stderr // Forward XO's stderr for error visibility
-
-	// Run the XO command
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("failed to generate model with XO: %w", err)
-	}
-
-	// fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
-	return nil
-}
-func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto.Message) error {
+func (t Translator) GenerateModels(outputDir string, protoMessages []proto.Message) error {
 	// Database connection string (without specifying a database)
 	dbConnStr := fmt.Sprintf("%s:%s@tcp(%s:%s)/", t.dbConnection.DbUser, t.dbConnection.DbPass, t.dbConnection.DbHost, t.dbConnection.DbPort)
 
@@ -62,29 +33,16 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 	}
 
 	dbConnStr = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", t.dbConnection.DbUser, t.dbConnection.DbPass, t.dbConnection.DbHost, t.dbConnection.DbPort, t.dbConnection.DbName)
-
 	// Step 1: Connect to MySQL
 	db, err = sql.Open("mysql", dbConnStr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to MySQL: %w", err)
 	}
 
-	toValidate := []proto.Message{}
-
-	for _, protoMessage := range protoMessages {
-		// Extract table name from the Protobuf message
-		tname := string(protoMessage.ProtoReflect().Descriptor().Name())
-		_, err = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s;", tname))
-		if err != nil {
-			return fmt.Errorf("failed to drop table: %w", err)
-		}
-		toValidate = append(toValidate, protoMessage)
-	}
-
 	// Validate schema
-	err = t.ValidateSchema(toValidate, dbConnStr)
+	err = t.ValidateSchema(protoMessages, dbConnStr)
 	if err != nil {
-		return fmt.Errorf("schema validation failed for tables '%v': %w", toValidate, err)
+		return fmt.Errorf("schema validation failed for tables '%v': %w", protoMessages, err)
 	}
 
 	// Step 3: Process each proto message
@@ -100,12 +58,13 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 
 		// Generate the CREATE TABLE SQL statement
 		createTableSQL := t.GenerateCreateTableSQL(schema)
+
 		// fmt.Printf("Generated SQL for table '%s':\n%s\n", tableName, createTableSQL)
 
 		// Ensure the table is dropped if it exists to avoid conflicts
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;", tableName))
 		if err != nil {
-			return fmt.Errorf("failed to drop table '%s': %w", tableName, err)
+			fmt.Printf("failed to drop table '%s': %s", tableName, err)
 		}
 
 		// Apply the schema to the database
@@ -118,7 +77,7 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 		fullDBConnStr := fmt.Sprintf("mysql://%s:%s@%s:%s/%s", t.dbConnection.DbUser, t.dbConnection.DbPass, t.dbConnection.DbHost, t.dbConnection.DbPort, t.dbConnection.DbName)
 
 		// Generate XO models
-		err = t.GenerateModel(fullDBConnStr, tableName, outputDir)
+		err = t.runXo(fullDBConnStr, tableName, outputDir, "../templates")
 		if err != nil {
 			return fmt.Errorf("model generation failed for table '%s': %w", tableName, err)
 		}
@@ -126,5 +85,46 @@ func (t Translator) ProcessProtoMessages(outputDir string, protoMessages []proto
 		// fmt.Printf("Model generated successfully for table '%s' in directory '%s'\n", tableName, outputDir)
 	}
 
+	return nil
+}
+
+func (t Translator) runXo(dbConnStr, tableName, outputDir, templatesDir string) error {
+	// Check if XO is installed
+	_, err := exec.LookPath("xo")
+	if err != nil {
+		return fmt.Errorf("xo is not installed: %w", err)
+	}
+
+	// Build the XO command
+	cmdArgs := []string{
+		"schema",           // XO subcommand for schema inspection
+		dbConnStr,          // Database connection string as positional argument
+		"--out", outputDir, // Output directory for generated models
+		"--include", tableName, // Include only the specified table
+		"--src", templatesDir, // Specify the templates directory
+	}
+
+	// Prepare XO command
+	cmd := exec.Command("xo", cmdArgs...)
+	cmd.Stdout = os.Stdout // Forward XO's stdout for visibility
+	cmd.Stderr = os.Stderr // Forward XO's stderr for error visibility
+
+	// Run the XO command
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to generate model with XO: %w", err)
+	}
+
+	// Run the find and sed command to update generated files
+	findCmd := exec.Command("find", outputDir, "-type", "f", "-name", "*.go", "-exec", "sed", "-i", "", "s/proto_db_default\\.//g", "{}", "+")
+	findCmd.Stdout = os.Stdout // Forward find command's stdout for visibility
+	findCmd.Stderr = os.Stderr // Forward find command's stderr for error visibility
+
+	err = findCmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to process generated files with find/sed: %w", err)
+	}
+
+	fmt.Printf("Model generated and processed successfully for table '%s' in directory '%s'\n", tableName, outputDir)
 	return nil
 }
