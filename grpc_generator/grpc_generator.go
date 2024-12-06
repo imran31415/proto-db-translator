@@ -12,7 +12,6 @@ type GRPCServerConfig struct {
 	ProtobufService string
 	DatabaseDriver  string
 	InsecurePort    string
-	DatabaseDSN     string
 }
 
 func GenerateGRPCServer(config GRPCServerConfig, outputDir string) error {
