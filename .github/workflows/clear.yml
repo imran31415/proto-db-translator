@@ -57,17 +57,20 @@ jobs:
           go install github.com/xo/xo@latest # needed to generate models
 
       # Step 6: Run tests with MySQL
+      # Step 6: Run tests with MySQL
       - name: Run tests
         env:
           DATABASE_URL: "root:password@tcp(127.0.0.1:3306)/testt"
         run: |
           go test -v ./...
           go test -coverprofile=coverage.out ./...
-      # Step 7. Upload coverage report to Codecov
+          # Filter out generated_models and user directories from coverage.out
+          grep -v "/generated_models/" coverage.out | grep -v "/user/" > filtered_coverage.out
+      # Step 7: Upload coverage report to Codecov
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.out  # Path to your coverage file
+          files: ./filtered_coverage.out  # Use the filtered coverage file
           flags: unittests
           name: codecov-coverage
